@@ -7,8 +7,9 @@ import matplotlib.pyplot as plt
 from sympy import exp
 from sympy import Symbol
 from sympy import N
-from sympy import integrate
+from sympy import Integral
 from sympy import sqrt
+from sympy import simplify
 
 #Declare global boundary value problem parameters
 L = float(1.0)
@@ -170,7 +171,7 @@ def postprocess(d_params, elements):
             #print val
 
     error_L2 = calc_error(u_exact, u_h, x, node_loc, eval_node)
-
+    print error_L2
     if elements == 5: #Can remove this line to plot all numbers of elements
         plotcomparisonfunction(u_exact, u_h, x, node_loc)
 
@@ -234,7 +235,7 @@ def calc_error(u_exact, u_h, x, node_loc, node_valdict):
     for item in u_h.keys():
         bounds = u_h[item]['Bounds']
         u_heq = u_h[item]['Equation']
-        val = N(integrate(pow((u_exact - u_heq),2), (x, bounds[0], bounds[1])))
+        val = Integral(simplify(pow((u_exact - u_heq),2)), (x, bounds[0], bounds[1]))
         integral_sum += val
 
     error_L2 = N(sqrt(integral_sum))
