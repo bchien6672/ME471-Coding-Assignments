@@ -3,15 +3,15 @@
 
 #global imports
 import numpy as np
-import matplotlib as plt
+import matplotlib.pyplot as plt
+from sympy import exp
 from sympy import Symbol
-
+from collections import OrderedDict
 
 #Declare global boundary value problem parameters
 L = float(1.0)
 
 """ Preprocess functions"""
-
 def solve_function(global_K, force):
     #imposes BC
     before_constrain = global_K.tolist()
@@ -27,9 +27,8 @@ def solve_function(global_K, force):
 
     d = np.linalg.inv(after_constrain) * force
     d = np.insert(d, 0, [0], axis=0)
-    print d
 
-    return
+    return d
 
 def getuppermatrix(gen_stiffness, local_dim, global_dim):
     upper_corner = []
@@ -126,7 +125,6 @@ def preprocess(elements):
     return d_params
 
 """ Postprocess functions """
-
 def postprocess(d_params, elements):
     #declare variables
     E = Symbol('E')
@@ -142,30 +140,98 @@ def postprocess(d_params, elements):
     for i in range(0, elements + 1):
         node_loc.append(i * element_length)
 
-    
+    E_fcn = []
+    for i in range(0, len(node_loc) - 1):
+        shape_fcn = ((2*x) - node_loc[i] - node_loc[i + 1])/element_length
+        E_fcn.append(shape_fcn)
+
+    u_h = {}
+
+    for i in range(0, len(E_fcn)):
+        eq_desig = 'N' + str(i + 1) + str(i+2)
+        u_h[node_loc[i]] = {}
+        u_h[node_loc[i]]['Constraints'] = str(node_loc[i]) + ' < ' + str(x) + ' < ' + str(node_loc[i + 1])
+        u_h[node_loc[i]]['Equation'] = (d_params[i] * (1/float(2)) * (1 - E_fcn[i])) + (d_params[i + 1] * (1/float(2)) * (1 + E_fcn[i]))
+        u_h[node_loc[i]]['Designation'] = eq_desig
+        u_h[node_loc[i]]['Upper Bound'] = node_loc[i + 1]
+
+    u_exact = ((exp(1))/(exp(2) + 1)) * (exp(x) - exp(-x))
+
+    eval_node = create_nodeevaltable(u_exact, u_h, x, node_loc)
+    #calc_error(u_exact, u_h, x, node_loc)
+
+    if elements == 5: #Can be removed to compare all numbers of elements
+        plotcomparisonfunction(u_exact, u_h, x, node_loc)
 
     return
 
-#def plotcomparisonfunction():
+def create_nodeevaltable(u_exact, u_h, x, node_loc):
+    eval_node = {}
+
+    x_input = node_loc
+    eval_node['x'] = x_input
+
+    y_exact = []
+    for i in x_input:
+        y_exact.append(u_exact.subs(x, i))
+    eval_node['u_exact'] = y_exact
+
+    y_uh = [0, 0, 0]
+
+    for node in u_h:
+        for i in range(1, len(node_loc)):
+            if i in u_h[node_loc[i]]
+
+    for i in range(1, len(node_loc)):
+        eq = u_h[node_loc[i]]['Equation']
+        y_uh[i] = eq.subs(x, node_loc[i])
+
+    #eval_node['u_h'] = y_uh
+
+
+    return eval_node
+
+def plotcomparisonfunction(u_exact, u_h, x, node_loc):
+    #Plot exact and u_h
+    #get exact soln
+    x_input = np.linspace(0.0, L, num = 1000)
+    x_input = x_input.tolist()
+    y_exact = []
+
+    for i in x_input:
+        y_exact.append(u_exact.subs(x, i))
+
+    y_uh = []
+    x_uh = []
+    for i in range(0, len(node_loc) - 1):
+        x_range = np.linspace(node_loc[i], node_loc[i + 1], 500)
+        x_range = x_range.tolist()
+        if node_loc[i] in u_h.keys():
+            eq = u_h[node_loc[i]]['Equation']
+            for j in x_range:
+                x_uh.append(j)
+                y_uh.append(eq.subs(x, j))
+
+    plt.plot(x_input, y_exact)
+    plt.plot(x_uh, y_uh, '--')
+    plt.xlabel('x')
+    plt.ylabel('Solution')
+    plt.legend(['Exact', 'u_h'])
+    plt.show()
+    return
+
+#def calc_error(u_exact, u_h, x, node_loc):
     #return
 
-#def calc_error():
+#def plot_errorcomparison():
     #return
-
-
 
 def main():
     #Introduction to program
     elements_num = raw_input("Input the number of elements you want to implement:   ")
     elements_num = int(elements_num)
-    full_soln_flag = False
-    if elements_num == 5:
-        full_soln_flag = True
     print "You have selected " + str(elements_num) + " elements."
     d_params = preprocess(elements_num)
-
-    #if full_soln_flag == True:
     postprocess(d_params, elements_num)
-    #else:
-        #pass
+
 if __name__ == "__main__": main()
