@@ -6,7 +6,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sympy import exp
 from sympy import Symbol
-from collections import OrderedDict
+from sympy import N
+from sympy import integrate
+from sympy import sqrt
 
 #Declare global boundary value problem parameters
 L = float(1.0)
@@ -130,10 +132,11 @@ def postprocess(d_params, elements):
     E = Symbol('E')
     x = Symbol('x')
 
-    N_1 = (1/float(2)) * (1 - E)
-    N_2 = (1/float(2)) * (1 + E)
-    N_1e = 1/float(2)
-    N_2e = 1/float(2)
+    #General eqs. for reference (commented for code optimization)
+    #N_1 = (1/float(2)) * (1 - E)
+    #N_2 = (1/float(2)) * (1 + E)
+    #N_1e = 1/float(2)
+    #N_2e = 1/float(2)
 
     element_length = 1/float(elements)
     node_loc = []
@@ -149,18 +152,26 @@ def postprocess(d_params, elements):
 
     for i in range(0, len(E_fcn)):
         eq_desig = 'N' + str(i + 1) + str(i+2)
-        u_h[node_loc[i]] = {}
-        u_h[node_loc[i]]['Constraints'] = str(node_loc[i]) + ' < ' + str(x) + ' < ' + str(node_loc[i + 1])
-        u_h[node_loc[i]]['Equation'] = (d_params[i] * (1/float(2)) * (1 - E_fcn[i])) + (d_params[i + 1] * (1/float(2)) * (1 + E_fcn[i]))
-        u_h[node_loc[i]]['Designation'] = eq_desig
-        u_h[node_loc[i]]['Upper Bound'] = node_loc[i + 1]
+        u_h[eq_desig] = {}
+        u_h[eq_desig]['Constraints'] = str(node_loc[i]) + ' < ' + str(x) + ' < ' + str(node_loc[i + 1])
+        u_h[eq_desig]['Equation'] = (d_params[i] * (1/float(2)) * (1 - E_fcn[i])) + (d_params[i + 1] * (1/float(2)) * (1 + E_fcn[i]))
+        u_h[eq_desig]['Bounds'] = [node_loc[i], node_loc[i + 1]]
+        u_h[eq_desig]['Upper Bound'] = node_loc[i + 1]
+        u_h[eq_desig]['Lower Bound'] = node_loc[i]
 
     u_exact = ((exp(1))/(exp(2) + 1)) * (exp(x) - exp(-x))
 
     eval_node = create_nodeevaltable(u_exact, u_h, x, node_loc)
-    #calc_error(u_exact, u_h, x, node_loc)
 
-    if elements == 5: #Can be removed to compare all numbers of elements
+    #copied and pasted values for nodal value table in Excel
+    #for item in eval_node.keys():
+        #print item
+        #for val in eval_node[item]:
+            #print val
+
+    error_L2 = calc_error(u_exact, u_h, x, node_loc, eval_node)
+
+    if elements == 5: #Can remove this line to plot all numbers of elements
         plotcomparisonfunction(u_exact, u_h, x, node_loc)
 
     return
@@ -173,22 +184,18 @@ def create_nodeevaltable(u_exact, u_h, x, node_loc):
 
     y_exact = []
     for i in x_input:
-        y_exact.append(u_exact.subs(x, i))
+        y_exact.append(N(u_exact.subs(x, i)))
     eval_node['u_exact'] = y_exact
 
-    y_uh = [0, 0, 0]
-
-    for node in u_h:
+    y_uh = [0] * len(node_loc)
+    for key in u_h.keys():
         for i in range(1, len(node_loc)):
-            if i in u_h[node_loc[i]]
+            if node_loc[i] == u_h[key]['Upper Bound']:
+                eq = u_h[key]['Equation']
+                y_uh[i] = eq.subs(x, node_loc[i])
+                break
 
-    for i in range(1, len(node_loc)):
-        eq = u_h[node_loc[i]]['Equation']
-        y_uh[i] = eq.subs(x, node_loc[i])
-
-    #eval_node['u_h'] = y_uh
-
-
+    eval_node['u_h'] = y_uh
     return eval_node
 
 def plotcomparisonfunction(u_exact, u_h, x, node_loc):
@@ -203,28 +210,36 @@ def plotcomparisonfunction(u_exact, u_h, x, node_loc):
 
     y_uh = []
     x_uh = []
-    for i in range(0, len(node_loc) - 1):
+    for i, key in zip(range(0, len(node_loc) - 1), u_h.keys()):
         x_range = np.linspace(node_loc[i], node_loc[i + 1], 500)
         x_range = x_range.tolist()
-        if node_loc[i] in u_h.keys():
-            eq = u_h[node_loc[i]]['Equation']
+        if node_loc[i] == u_h[key]['Lower Bound']:
+            eq = u_h[key]['Equation']
             for j in x_range:
                 x_uh.append(j)
                 y_uh.append(eq.subs(x, j))
 
+    plt.figure()
     plt.plot(x_input, y_exact)
-    plt.plot(x_uh, y_uh, '--')
+    plt.plot(x_uh, y_uh, '--', linewidth = 2)
     plt.xlabel('x')
     plt.ylabel('Solution')
     plt.legend(['Exact', 'u_h'])
     plt.show()
     return
 
-#def calc_error(u_exact, u_h, x, node_loc):
-    #return
+def calc_error(u_exact, u_h, x, node_loc, node_valdict):
+    integral_sum = 0
 
-#def plot_errorcomparison():
-    #return
+    for item in u_h.keys():
+        bounds = u_h[item]['Bounds']
+        u_heq = u_h[item]['Equation']
+        val = N(integrate(pow((u_exact - u_heq),2), (x, bounds[0], bounds[1])))
+        integral_sum += val
+
+    error_L2 = N(sqrt(integral_sum))
+
+    return error_L2
 
 def main():
     #Introduction to program
