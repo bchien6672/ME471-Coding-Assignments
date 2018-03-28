@@ -4,12 +4,6 @@
 #global imports
 import numpy as np
 import matplotlib.pyplot as plt
-from sympy import exp
-from sympy import Symbol
-from sympy import N
-from sympy import Integral
-from sympy import sqrt
-from sympy import simplify
 
 #problem conditions (Assume consistent units)
 f = 2
@@ -180,9 +174,20 @@ def postprocess(d_param, element_num):
 
         stress_list = reformatted_stresslist
 
+
     x_midpt, mid_stress = calc_midptstress(element_length, node_loc)
 
-    plot_stress(node_loc, stress_list, x_midpt, mid_stress)
+    x_qtrpt, qtrstress = calc_qtrptstress(element_length, node_loc)
+
+    #plot stresses
+    plot_stress(node_loc, stress_list, x_midpt, mid_stress, True)
+    plot_stress(node_loc, stress_list, x_qtrpt, qtrstress)
+
+    #calculate error
+    h_error, q_error = calc_error(stress_list, mid_stress, qtrstress)
+    print "Half-point Error: " + str(h_error)
+    print "Quarter-point Error: " + str(q_error)
+    return
 
 def calc_midptstress(element_length, node_loc):
     half_length = element_length / 2
@@ -195,7 +200,7 @@ def calc_midptstress(element_length, node_loc):
             updated_nodeloc.append(point)
 
     for i in updated_nodeloc:
-        stress = (2/A) * (6 - i)
+        stress = (1/A) * (12 - (2*i))
         midpt_stress.append(stress)
 
     return updated_nodeloc, midpt_stress
@@ -216,18 +221,54 @@ def calc_qtrptstress(element_length, node_loc):
 
     return updated_nodeloc, qtrpt_stress
 
-def plot_stress(x1, y1, x2, y2):
+def plot_stress(x1, y1, x2, y2, half = False):
     plt.figure()
     #duplicate middle nodes
-    val_duplicate =
-    print x1
-    #plt.plot(x1, y1)
-    plt.scatter(x2, y2, c = 'g')
+    val_duplicate = []
+
+    for i in x1:
+        ind = x1.index(i)
+
+        if ind == 0 or ind == (len(x1) - 1):
+            pass
+        else:
+            val_duplicate.append(i)
+
+    x1 = x1 + val_duplicate
+    x1 = sorted(x1)
+
+    val_duplicate = []
+
+    for i in range(0, len(y1) - 2):
+        val_duplicate.append(y1[i])
+
+    y1 = y1 + val_duplicate
+    y1 = sorted(y1, reverse = True)
+
+    plt.plot(x1, y1)
+    plt.scatter(x2, y2, c = 'g', marker = '.')
+    plt.xlabel('x')
+    plt.ylabel('Stress')
+    if half == True:
+        plt.legend(['Exact Stress', 'Midpoint Stress'])
+    else:
+        plt.legend(['Exact Stress', 'Quarter Point Stress'])
     plt.show()
     return
 
-def calc_error():
-    return
+def calc_error(stress, mid_stress, qtrstress):
+    del(stress[-1])
+
+    error_half = []
+    error_qtr = []
+
+    for val1, val2, val3 in zip(stress, mid_stress, qtrstress):
+        error_h = abs(val1 - val2)
+        error_q = abs(val1 - val3)
+        error_half.append(error_h)
+        error_qtr.append(error_q)
+
+    return error_half[0], error_qtr[0]
 
 def main():
     #Introduction to program
