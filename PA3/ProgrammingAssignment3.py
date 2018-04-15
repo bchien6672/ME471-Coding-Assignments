@@ -1,14 +1,81 @@
 # Brian H Chien
 # Programming Assignment 3
 
+""" Global Imports """
+import math
+import numpy as np
+
 """ Preprocessing Functions """
+def generate_elementstiffness(param_dict):
+    K_list = []
 
+    element_data = param_dict['Element Data']
+    list_elements = element_data.keys()
 
+    sorted_elements = sorted(list_elements)
 
+    node_database = param_dict['Node Data']
+    print node_database
+    #assuming all coordinate basis are in the same orientation
+    for element in sorted_elements:
+        element_subset = element_data[element]
+        first_node = element_subset['First Node']
+        second_node = element_subset['Second Node']
+        element_area = float(element_subset['Cross-Section Area'])
+        y_mod = float(element_subset['Y-Modulus'])
 
+        node_x1 = float(node_database[first_node]['X'])
+        node_x2 = float(node_database[second_node]['X'])
+
+        node_y1 = float(node_database[first_node]['Y'])
+        node_y2 = float(node_database[second_node]['Y'])
+
+        node_x = node_x2 - node_x1
+        node_y = node_y2 - node_y1
+
+        element_length = math.sqrt(math.pow(node_x, 2) + math.pow(node_y, 2))
+
+        l_x = node_x/element_length
+        l_y = node_y/element_length
+
+        K_el = np.array([[pow(l_x, 2), (l_x * l_y), -(pow(l_x, 2)), -(l_x * l_y)],
+                         [(l_x * l_y), (pow(l_y, 2)), -(l_x * l_y), -(pow(l_y, 2))],
+                         [-(pow(l_x, 2)), -(l_x * l_y),  pow(l_x, 2), (l_x * l_y)],
+                         [-(l_x * l_y), -(pow(l_y, 2)), (l_x * l_y), (pow(l_y, 2))]])
+
+        K_el = ((element_area * y_mod)/element_length) * K_el
+
+        K_list.append(K_el)
+
+    return K_list
+
+def assemble_globalstiffness(K_list):
+    return
+
+def generate_elementforce(param_dict):
+
+    return
+def assemble_globalforce():
+
+    return
+
+def impose_BC():
+
+    return
+
+def calc_disp():
+
+    return
 
 
 """ Postprocessing Functions """
+def get_elementaxialforce():
+    return
+
+def calc_elementforce():
+
+    return
+
 
 
 
@@ -49,12 +116,20 @@ def create_inputdec(txt): #takes in text file as series of lists
     param_dict['Problem Param.']['Constained Nodes'] = nodal_info[3]
 
     element_coords = parsed_txt[1]
+
+    nodal_comp = int(nodal_info[0]) * 2
+    basis_list = list(range(1, nodal_comp + 1))
+
+    print basis_list
+
+    coord_basisnum = 1
     for pt in element_coords:
         pt_list = pt.split()
-        node_val = 'Node ' + str(pt[0])
+        node_val = pt[0]
         param_dict['Node Data'][node_val] = {}
         param_dict['Node Data'][node_val]['X'] = pt_list[1]
         param_dict['Node Data'][node_val]['Y'] = pt_list[2]
+        #param_dict['Node Data'][node_val]['Basis Numbers'] =
 
     element_data = parsed_txt[2]
     for element in element_data:
@@ -69,7 +144,7 @@ def create_inputdec(txt): #takes in text file as series of lists
     force_data = parsed_txt[3]
     for force in force_data:
         force_point = force.split()
-        force_at_node = 'Node ' + str(force_point[0])
+        force_at_node = str(force_point[0])
         param_dict['Force Data'][force_at_node] = {}
         param_dict['Force Data'][force_at_node]['X-Dir'] = force_point[1] #lb
         param_dict['Force Data'][force_at_node]['Y-Dir'] = force_point[2]
@@ -77,7 +152,7 @@ def create_inputdec(txt): #takes in text file as series of lists
     constraint_data = parsed_txt[4]
     for constraint in constraint_data:
         constraint_node = constraint.split()
-        node_num = 'Node ' + str(constraint_node[0])
+        node_num = str(constraint_node[0])
         param_dict['Constraint Data'][node_num] = {}
 
         x_constrainbool = constraint_node[1]
@@ -109,6 +184,8 @@ def main():
     input_param = create_inputdec(txt)
 
     #preprocess
+    K_element_list = generate_elementstiffness(input_param)
+
 
     #postprocess
 
