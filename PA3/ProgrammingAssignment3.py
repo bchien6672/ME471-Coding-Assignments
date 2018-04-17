@@ -7,6 +7,7 @@ import numpy as np
 
 """ Preprocessing Functions """
 def generate_elementstiffness(param_dict):
+    K_dict = {}
     K_list = []
 
     element_data = param_dict['Element Data']
@@ -15,7 +16,7 @@ def generate_elementstiffness(param_dict):
     sorted_elements = sorted(list_elements)
 
     node_database = param_dict['Node Data']
-    print node_database
+
     #assuming all coordinate basis are in the same orientation
     for element in sorted_elements:
         element_subset = element_data[element]
@@ -29,6 +30,11 @@ def generate_elementstiffness(param_dict):
 
         node_y1 = float(node_database[first_node]['Y'])
         node_y2 = float(node_database[second_node]['Y'])
+
+        basis_comp1 = node_database[first_node]['Basis Numbers']
+        basis_comp2 = node_database[second_node]['Basis Numbers']
+
+        basis = basis_comp1 + basis_comp2
 
         node_x = node_x2 - node_x1
         node_y = node_y2 - node_y1
@@ -45,12 +51,41 @@ def generate_elementstiffness(param_dict):
 
         K_el = ((element_area * y_mod)/element_length) * K_el
 
+        K_dict[element] = {}
+        K_dict[element]['Element Stiffness Matrix'] = K_el
+        K_dict[element]['Basis Nums'] = basis
+
         K_list.append(K_el)
 
-    return K_list
+    return K_list, K_dict
 
-def assemble_globalstiffness(K_list):
-    return
+def assemble_globalstiffness(K_list, K_dict, param_dict):
+    print param_dict
+    num_disp = int(param_dict['Problem Param.']['Number of Nodes']) * 2
+
+    global_K = np.zeros((num_disp, num_disp))
+
+    print global_K
+
+    list_el = K_dict.keys()
+    list_el = sorted(list_el)
+
+    for element in list_el:
+        basis_ind = K_dict[element]['Basis Nums']
+        K_el = K_dict[element]['Element Stiffness Matrix']
+        print '111111', K_el
+        print basis_ind
+        for basis in basis_ind:
+            insert_row = basis - 1
+            insertelement_row = basis_ind.index(basis)
+            row_forinsertG = global_K[insert_row]
+            row_forinsertE = K_el[insertelement_row]
+            for basis_col in basis_ind:
+                insert_col = basis_col - 1
+                insert_element_col = basis_ind.index(basis_col)
+                row_forinsertG[basis_col - 1] = row_forinsertG[basis_col - 1] + row_forinsertE[insert_element_col]
+
+    return global_K
 
 def generate_elementforce(param_dict):
 
@@ -59,26 +94,22 @@ def assemble_globalforce():
 
     return
 
-def impose_BC():
+def impose_BC(global_K, ):
 
-    return
+    return K_BC
 
-def calc_disp():
-
-    return
+def calc_disp(K_BC, F_BC):
+    d_params = []
+    return d_params
 
 
 """ Postprocessing Functions """
-def get_elementaxialforce():
+def get_elementaxialforce(K_list):
     return
 
-def calc_elementforce():
+def calc_elementforce(K_list, param_dict):
 
     return
-
-
-
-
 
 
 """ File parsing functions """
@@ -113,7 +144,7 @@ def create_inputdec(txt): #takes in text file as series of lists
     param_dict['Problem Param.']['Number of Nodes'] = nodal_info[0]
     param_dict['Problem Param.']['Number of Elements'] = nodal_info[1]
     param_dict['Problem Param.']['Loaded Nodes'] = nodal_info[2]
-    param_dict['Problem Param.']['Constained Nodes'] = nodal_info[3]
+    param_dict['Problem Param.']['Constrained Nodes'] = nodal_info[3]
 
     element_coords = parsed_txt[1]
 
@@ -186,9 +217,12 @@ def main():
         txt[ind] = line
 
     input_param = create_inputdec(txt)
-    print input_param
+
     #preprocess
-    K_element_list = generate_elementstiffness(input_param)
+    K_element_list, K_dict = generate_elementstiffness(input_param)
+    print K_element_list, K_dict
+    global_K = assemble_globalstiffness(K_element_list, K_dict, input_param)
+    #impose_BC(global_K)
 
     #postprocess
 
