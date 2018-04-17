@@ -117,10 +117,7 @@ def create_inputdec(txt): #takes in text file as series of lists
 
     element_coords = parsed_txt[1]
 
-    nodal_comp = int(nodal_info[0]) * 2
-    basis_list = list(range(1, nodal_comp + 1))
-
-    print basis_list
+    basis_list = [1, 2]
 
     coord_basisnum = 1
     for pt in element_coords:
@@ -129,7 +126,14 @@ def create_inputdec(txt): #takes in text file as series of lists
         param_dict['Node Data'][node_val] = {}
         param_dict['Node Data'][node_val]['X'] = pt_list[1]
         param_dict['Node Data'][node_val]['Y'] = pt_list[2]
-        #param_dict['Node Data'][node_val]['Basis Numbers'] =
+        param_dict['Node Data'][node_val]['Basis Numbers'] = []
+        for num in basis_list:
+            if num == 1:
+                basis_set = (2 * int(node_val)) - 1
+                param_dict['Node Data'][node_val]['Basis Numbers'].append(basis_set)
+            elif num == 2:
+                basis_set = int(node_val) * 2
+                param_dict['Node Data'][node_val]['Basis Numbers'].append(basis_set)
 
     element_data = parsed_txt[2]
     for element in element_data:
@@ -182,10 +186,9 @@ def main():
         txt[ind] = line
 
     input_param = create_inputdec(txt)
-
+    print input_param
     #preprocess
     K_element_list = generate_elementstiffness(input_param)
-
 
     #postprocess
 
