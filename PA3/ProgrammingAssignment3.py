@@ -57,15 +57,12 @@ def generate_elementstiffness(param_dict):
 
         K_list.append(K_el)
 
-    return K_list, K_dict
+    return K_dict
 
-def assemble_globalstiffness(K_list, K_dict, param_dict):
-    print param_dict
+def assemble_globalstiffness(K_dict, param_dict):
     num_disp = int(param_dict['Problem Param.']['Number of Nodes']) * 2
 
     global_K = np.zeros((num_disp, num_disp))
-
-    print global_K
 
     list_el = K_dict.keys()
     list_el = sorted(list_el)
@@ -73,8 +70,7 @@ def assemble_globalstiffness(K_list, K_dict, param_dict):
     for element in list_el:
         basis_ind = K_dict[element]['Basis Nums']
         K_el = K_dict[element]['Element Stiffness Matrix']
-        print '111111', K_el
-        print basis_ind
+
         for basis in basis_ind:
             insert_row = basis - 1
             insertelement_row = basis_ind.index(basis)
@@ -83,33 +79,133 @@ def assemble_globalstiffness(K_list, K_dict, param_dict):
             for basis_col in basis_ind:
                 insert_col = basis_col - 1
                 insert_element_col = basis_ind.index(basis_col)
-                row_forinsertG[basis_col - 1] = row_forinsertG[basis_col - 1] + row_forinsertE[insert_element_col]
+                row_forinsertG[insert_col] = row_forinsertG[insert_col] + row_forinsertE[insert_element_col]
 
     return global_K
 
-def generate_elementforce(param_dict):
+def generate_elementforce(param_dict): #Assume [x_dir; y_dir]
+    F_list = {}
+    element_data = param_dict['Element Data']
+    list_elements = element_data.keys()
 
-    return
-def assemble_globalforce():
+    sorted_elements = sorted(list_elements)
 
-    return
+    load_list = param_dict['Force Data'].keys()
 
-def impose_BC(global_K, ):
+    sec_1 = [0, 1]
+    sec_2 = [2, 3]
 
-    return K_BC
+    for element in sorted_elements:
+        F_el = np.zeros((4, 1))
+        node_list = []
+
+        node_list.append(element_data[element]['First Node'])
+        node_list.append(element_data[element]['Second Node'])
+
+        for node in node_list:
+            if node in load_list:
+                vector_ind = node_list.index(node)
+                if vector_ind == 0:
+                    insert_ind = sec_1
+                elif vector_ind == 1:
+                    insert_ind = sec_2
+
+                F_el[insert_ind[0]] = param_dict['Force Data'][node]['X-Dir']
+                F_el[insert_ind[1]] = param_dict['Force Data'][node]['Y-Dir']
+
+        F_list[element] = F_el
+
+    return F_list
+
+def assemble_globalforce(param_dict):
+    num_disp = int(param_dict['Problem Param.']['Number of Nodes']) * 2
+
+    F_global = np.zeros((num_disp, 1))
+    loadset = param_dict['Force Data']
+
+    loaded_nodes = sorted(param_dict['Force Data'].keys())
+
+    for node in loaded_nodes:
+        basis_set = param_dict['Node Data'][node]['Basis Numbers']
+        F_x = loadset[node]['X-Dir']
+        F_y = loadset[node]['Y-Dir']
+
+        for basis in basis_set:
+            test_ind = basis_set.index(basis)
+            if test_ind == 0:
+                F_global[basis - 1] = F_x
+            elif test_ind == 1:
+                F_global[basis - 1] = F_y
+
+    return F_global
+
+def impose_BC(global_K, global_F, prob_params):
+    constraint_set =  sorted(prob_params['Constraint Data'].keys())
+
+    for constraint in constraint_set:
+        basis_set = prob_params['Node Data'][constraint]['Basis Numbers']
+        constraint_1 = prob_params['Constraint Data'][constraint]['X-disp']
+        constraint_2 = prob_params['Constraint Data'][constraint]['Y-disp']
+
+        #First constrain force vector
+        for basis in basis_set:
+            constrain_ind = basis_set.index(basis)
+            if constrain_ind == 0:
+                global_K[:, basis - 1] = global_F[basis - 1] - (global_K[:, basis - 1] * int(constraint_1))
+                global_K[basis - 1] = 0
+                global_K[basis - 1, basis - 1] = 1
+                global_F[basis - 1] = constraint_1
+            elif constrain_ind == 1:
+                global_K[:, basis - 1] = global_F[basis - 1] - (global_K[:, basis - 1] * int(constraint_2))
+                global_K[basis - 1] = 0
+                global_K[basis - 1, basis - 1] = 1
+                global_F[basis - 1] = constraint_2
+
+    constrain_F = global_F
+    constrain_K = global_K
+
+    return constrain_K, constrain_F
 
 def calc_disp(K_BC, F_BC):
-    d_params = []
+    d_params = np.matmul(np.linalg.inv(K_BC), F_BC)
+
     return d_params
 
 
 """ Postprocessing Functions """
-def get_elementaxialforce(K_list):
-    return
+def get_axialforce(forces):
+    axial_forces = {}
+    print forces
 
-def calc_elementforce(K_list, param_dict):
+    el_list = sorted(forces.keys())
 
-    return
+    for element in el_list:
+        F_x = forces[element][0]
+        F_y = forces[element][1]
+        axial_forces[element] = math.sqrt(math.pow(F_x, 2) + math.pow(F_y, 2))
+
+    return axial_forces
+
+def calc_elementforce(K_list, d_params):
+    el_F = {}
+
+    el_list = sorted(K_list.keys())
+
+    for element in el_list:
+        basis_set = K_list[element]['Basis Nums']
+        d_set = np.zeros((len(basis_set), 1))
+        K = K_list[element]['Element Stiffness Matrix']
+
+        #assemble element disp matrix
+        for basis in basis_set:
+            ind = basis_set.index(basis)
+            d_set[ind] = d_params[basis - 1]
+
+        F_set = np.matmul(K, d_set)
+        F_set = F_set / 1000 #convert to kip
+        el_F[element] = F_set
+
+    return el_F
 
 
 """ File parsing functions """
@@ -219,11 +315,20 @@ def main():
     input_param = create_inputdec(txt)
 
     #preprocess
-    K_element_list, K_dict = generate_elementstiffness(input_param)
-    print K_element_list, K_dict
-    global_K = assemble_globalstiffness(K_element_list, K_dict, input_param)
-    #impose_BC(global_K)
+    #generate stiffness matrices
+    K_dict = generate_elementstiffness(input_param)
+    global_K = assemble_globalstiffness(K_dict, input_param)
+
+    #generate force vectors
+    #F_el = generate_elementforce(input_param)
+    F_global = assemble_globalforce(input_param)
+
+    #Solve for d
+    constrain_K, constrain_F = impose_BC(global_K, F_global, input_param)
+    d_params = calc_disp(constrain_K, constrain_F) #nodal displacement matrix
 
     #postprocess
+    element_F = calc_elementforce(K_dict, d_params) #element reaction forces
+    axial_Fmag = get_axialforce(element_F) #in kip
 
 if __name__ == "__main__": main()
