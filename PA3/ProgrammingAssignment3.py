@@ -175,7 +175,6 @@ def calc_disp(K_BC, F_BC):
 """ Postprocessing Functions """
 def get_axialforce(forces):
     axial_forces = {}
-    print forces
 
     el_list = sorted(forces.keys())
 
@@ -330,5 +329,10 @@ def main():
     #postprocess
     element_F = calc_elementforce(K_dict, d_params) #element reaction forces
     axial_Fmag = get_axialforce(element_F) #in kip
+
+    #print out the nodal displacement (in), element reaction forces, and the magnitude of the force on each element (both in kip)
+    print 'Nodal displacements (in) is: ' + str(d_params)
+    print 'Element forces (kip) are: ' + str(element_F)
+    print 'Axial forces (kip) are: ' + str(axial_Fmag)
 
 if __name__ == "__main__": main()
