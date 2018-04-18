@@ -151,12 +151,12 @@ def impose_BC(global_K, global_F, prob_params):
         for basis in basis_set:
             constrain_ind = basis_set.index(basis)
             if constrain_ind == 0:
-                global_K[:, basis - 1] = global_F[basis - 1] - (global_K[:, basis - 1] * int(constraint_1))
+                global_K[:, basis - 1] = global_F[basis - 1] - (global_K[:, basis - 1] * float(constraint_1))
                 global_K[basis - 1] = 0
                 global_K[basis - 1, basis - 1] = 1
                 global_F[basis - 1] = constraint_1
             elif constrain_ind == 1:
-                global_K[:, basis - 1] = global_F[basis - 1] - (global_K[:, basis - 1] * int(constraint_2))
+                global_K[:, basis - 1] = global_F[basis - 1] - (global_K[:, basis - 1] * float(constraint_2))
                 global_K[basis - 1] = 0
                 global_K[basis - 1, basis - 1] = 1
                 global_F[basis - 1] = constraint_2
@@ -271,39 +271,59 @@ def create_inputdec(txt): #takes in text file as series of lists
         param_dict['Element Data'][element_num]['Cross-Section Area'] = element_component[3]
         param_dict['Element Data'][element_num]['Y-Modulus'] = element_component[4]
 
-    force_data = parsed_txt[3]
-    for force in force_data:
-        force_point = force.split()
-        force_at_node = str(force_point[0])
-        param_dict['Force Data'][force_at_node] = {}
-        param_dict['Force Data'][force_at_node]['X-Dir'] = force_point[1] #lb
-        param_dict['Force Data'][force_at_node]['Y-Dir'] = force_point[2]
+    if nodal_info[2] != '0':
+        force_data = parsed_txt[3]
+        for force in force_data:
+            force_point = force.split()
+            force_at_node = str(force_point[0])
+            param_dict['Force Data'][force_at_node] = {}
+            param_dict['Force Data'][force_at_node]['X-Dir'] = force_point[1] #lb
+            param_dict['Force Data'][force_at_node]['Y-Dir'] = force_point[2]
 
-    constraint_data = parsed_txt[4]
-    for constraint in constraint_data:
-        constraint_node = constraint.split()
-        node_num = str(constraint_node[0])
-        param_dict['Constraint Data'][node_num] = {}
+        constraint_data = parsed_txt[4]
+        for constraint in constraint_data:
+            constraint_node = constraint.split()
+            node_num = str(constraint_node[0])
+            param_dict['Constraint Data'][node_num] = {}
 
-        x_constrainbool = constraint_node[1]
-        y_constrainbool = constraint_node[2]
+            x_constrainbool = constraint_node[1]
+            y_constrainbool = constraint_node[2]
 
-        if x_constrainbool != 1:
-            param_dict['Constraint Data'][node_num]['X-disp'] = constraint_node[3]
-        else:
-            param_dict['Constraint Data'][node_num]['X-disp'] = 0
+            if x_constrainbool != 1:
+                param_dict['Constraint Data'][node_num]['X-disp'] = constraint_node[3]
+            else:
+                param_dict['Constraint Data'][node_num]['X-disp'] = 0
 
-        if y_constrainbool != 1:
-            param_dict['Constraint Data'][node_num]['Y-disp'] = constraint_node[4]
-        else:
-            param_dict['Constraint Data'][node_num]['Y-disp'] = 0
+            if y_constrainbool != 1:
+                param_dict['Constraint Data'][node_num]['Y-disp'] = constraint_node[4]
+            else:
+                param_dict['Constraint Data'][node_num]['Y-disp'] = 0
+    else: #For Example 2
+        constraint_data = parsed_txt[3]
+        for constraint in constraint_data:
+            constraint_node = constraint.split()
+            node_num = str(constraint_node[0])
+            param_dict['Constraint Data'][node_num] = {}
+
+            x_constrainbool = constraint_node[1]
+            y_constrainbool = constraint_node[2]
+
+            if x_constrainbool != 1:
+                param_dict['Constraint Data'][node_num]['X-disp'] = constraint_node[3]
+            else:
+                param_dict['Constraint Data'][node_num]['X-disp'] = 0
+
+            if y_constrainbool != 1:
+                param_dict['Constraint Data'][node_num]['Y-disp'] = constraint_node[4]
+            else:
+                param_dict['Constraint Data'][node_num]['Y-disp'] = 0
 
     return param_dict
 
 def main():
     #Introduction to program
     print "This is Programming Assignment 3 (2D Truss FEM Solver)"
-    input_file = open('class_problem.txt', 'r')
+    input_file = open('class_problem.txt', 'r') #change name of file to Example1.txt, Example2.txt, any new input files need two lines of blank space after the last line
     txt = input_file.readlines()
 
     for line in txt:
